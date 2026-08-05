@@ -8,6 +8,9 @@ __pycache__/
 # macOS files
 .DS_Store
 
+# Generated reports
+*.xlsx
+
 # Virtual environments
 venv/
 .venv/
