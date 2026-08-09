@@ -1,9 +1,15 @@
 import json
+import math
 from functools import lru_cache
 
 import pandas as pd
 from dotenv import load_dotenv
 from openai import OpenAI
+
+
+def calculate_final_score(keyword_score: float, ai_score: float) -> float:
+    """Combine keyword and AI match scores using their configured weights."""
+    return round(keyword_score * 0.4 + ai_score * 0.6, 1)
 
 
 @lru_cache(maxsize=1)
@@ -93,6 +99,7 @@ def add_ai_match_scores(
     """为关键词分数最高的前 top_n 个职位添加 GPT 语义匹配字段。"""
     jobs_dataframe = jobs_dataframe.copy().reset_index(drop=True)
     jobs_dataframe["AI Match Score"] = None
+    jobs_dataframe["Final Match Score"] = None
     jobs_dataframe["Recommendation"] = ""
     jobs_dataframe["AI Matched Qualifications"] = ""
     jobs_dataframe["AI Missing Qualifications"] = ""
@@ -108,9 +115,25 @@ def add_ai_match_scores(
                 job_title=row["Title"],
                 job_description=row["Job Description"],
             )
-            jobs_dataframe.at[index, "AI Match Score"] = ai_result.get(
-                "ai_match_score"
-            )
+            ai_score = ai_result.get("ai_match_score")
+            jobs_dataframe.at[index, "AI Match Score"] = ai_score
+
+            try:
+                numeric_ai_score = float(ai_score)
+                if isinstance(ai_score, bool) or not math.isfinite(
+                    numeric_ai_score
+                ) or not 0 <= numeric_ai_score <= 100:
+                    raise ValueError(
+                        "AI match score must be between 0 and 100"
+                    )
+                jobs_dataframe.at[index, "Final Match Score"] = (
+                    calculate_final_score(
+                        float(row["Match Score"]), numeric_ai_score
+                    )
+                )
+            except (TypeError, ValueError):
+                jobs_dataframe.at[index, "Final Match Score"] = None
+
             jobs_dataframe.at[index, "Recommendation"] = ai_result.get(
                 "recommendation", ""
             )
@@ -129,5 +152,17 @@ def add_ai_match_scores(
             )
         except Exception as error:
             print(f"AI 匹配失败：{error}")
+
+    analyzed_count = min(top_n, len(jobs_dataframe))
+    analyzed_jobs = jobs_dataframe.iloc[:analyzed_count].sort_values(
+        by="Final Match Score",
+        ascending=False,
+        na_position="last",
+        kind="stable",
+    )
+    remaining_jobs = jobs_dataframe.iloc[analyzed_count:]
+    jobs_dataframe = pd.concat(
+        [analyzed_jobs, remaining_jobs], ignore_index=True
+    )
 
     return jobs_dataframe

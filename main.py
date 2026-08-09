@@ -32,6 +32,7 @@ def print_job_summary(dataframe: pd.DataFrame) -> None:
         "Location",
         "Match Score",
         "AI Match Score",
+        "Final Match Score",
         "Recommendation",
         "Matched Skills",
         "Missing Skills",
