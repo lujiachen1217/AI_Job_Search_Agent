@@ -65,14 +65,35 @@ def title_is_relevant(
     exclude_keywords: Iterable[str] = EXCLUDED_JOB_KEYWORDS,
 ) -> bool:
     """判断职位标题是否属于目标岗位，并排除高级或不相关岗位。"""
-    title_lower = title.casefold()
-    has_target_keyword = any(
-        keyword.casefold() in title_lower for keyword in target_keywords
+    return title_has_target_keyword(title, target_keywords) and not (
+        title_has_excluded_keyword(title, exclude_keywords)
     )
-    has_excluded_keyword = any(
-        keyword.casefold() in title_lower for keyword in exclude_keywords
+
+
+def _contains_title_phrase(title: str, phrase: str) -> bool:
+    """Match a title phrase without treating it as part of a larger word."""
+    pattern = r"(?<!\w)" + re.escape(phrase.casefold()) + r"(?!\w)"
+    return bool(re.search(pattern, title.casefold()))
+
+
+def title_has_target_keyword(
+    title: str,
+    target_keywords: Iterable[str] = TARGET_JOB_KEYWORDS,
+) -> bool:
+    """Return whether a title contains one of the configured target phrases."""
+    return any(
+        _contains_title_phrase(title, keyword) for keyword in target_keywords
     )
-    return has_target_keyword and not has_excluded_keyword
+
+
+def title_has_excluded_keyword(
+    title: str,
+    exclude_keywords: Iterable[str] = EXCLUDED_JOB_KEYWORDS,
+) -> bool:
+    """Return whether a title contains a configured exclusion phrase."""
+    return any(
+        _contains_title_phrase(title, keyword) for keyword in exclude_keywords
+    )
 
 
 def scrape_jobs(
@@ -81,6 +102,9 @@ def scrape_jobs(
     """抓取并筛选 Greenhouse 职位，返回包含完整 JD 的 DataFrame。"""
     results: list[dict] = []
     total_jobs = 0
+    title_relevant_jobs = 0
+    after_title_exclusions = 0
+    after_location_filter = 0
 
     for company in companies:
         url = f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs"
@@ -100,12 +124,18 @@ def scrape_jobs(
 
         for job in jobs:
             title = job.get("title", "").strip()
-            if not title_is_relevant(title):
+            if not title_has_target_keyword(title):
                 continue
+            title_relevant_jobs += 1
+
+            if title_has_excluded_keyword(title):
+                continue
+            after_title_exclusions += 1
 
             location = job.get("location", {}).get("name", "Unknown").strip()
             if is_excluded_location(location):
                 continue
+            after_location_filter += 1
 
             job_id = job.get("id")
             if not job_id:
@@ -128,5 +158,9 @@ def scrape_jobs(
         print("-" * 50)
 
     dataframe = pd.DataFrame(results, columns=SCRAPED_JOB_COLUMNS)
-    print(f"成功获取的职位总数：{total_jobs}")
+    print(f"Raw jobs fetched: {total_jobs}")
+    print(f"Title-relevant jobs: {title_relevant_jobs}")
+    print(f"After seniority/unrelated exclusions: {after_title_exclusions}")
+    print(f"After location filtering: {after_location_filter}")
+    print(f"Jobs with complete descriptions: {len(dataframe)}")
     return dataframe

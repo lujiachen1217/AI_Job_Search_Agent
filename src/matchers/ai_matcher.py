@@ -1,21 +1,14 @@
 import json
 import math
-from functools import lru_cache
 
 import pandas as pd
-from dotenv import load_dotenv
-from openai import OpenAI
+
+from src.clients.openai_client import get_openai_client
 
 
 def calculate_final_score(keyword_score: float, ai_score: float) -> float:
     """Combine keyword and AI match scores using their configured weights."""
     return round(keyword_score * 0.4 + ai_score * 0.6, 1)
-
-
-@lru_cache(maxsize=1)
-def _get_openai_client() -> OpenAI:
-    load_dotenv()
-    return OpenAI()
 
 
 def calculate_ai_match(
@@ -87,7 +80,7 @@ Job description:
 
 {job_description}
 """
-    response = _get_openai_client().responses.create(model="gpt-5", input=prompt)
+    response = get_openai_client().responses.create(model="gpt-5", input=prompt)
     return json.loads(response.output_text)
 
 

@@ -13,7 +13,8 @@ GREENHOUSE_COMPANIES = [
     "scaleai",
     "datadog",
     "figma",
-    "plaid",
+    # Plaid's former Greenhouse board currently returns 404. Keep it disabled
+    # until an official supported job source is configured.
     "reddit",
     "discord",
     "affirm",
@@ -31,6 +32,18 @@ TARGET_JOB_KEYWORDS = [
     "clinical data",
     "machine learning engineer",
     "research engineer",
+    "analytics",
+    "data science",
+    "decision science",
+    "insights analyst",
+    "quantitative analyst",
+    "statistical analyst",
+    "research analyst",
+    "business intelligence analyst",
+    "bi analyst",
+    "operations analyst",
+    "strategy analyst",
+    "risk analyst",
 ]
 
 EXCLUDED_JOB_KEYWORDS = [
@@ -62,6 +75,8 @@ EXCLUDED_LOCATION_KEYWORDS = [
     "canada",
     "doha",
     "qatar",
+    "poland",
+    "singapore",
 ]
 
 MINIMUM_MATCH_SCORE = 20

@@ -10,6 +10,7 @@ from src.config import (
     TOP_AI_MATCH_COUNT,
 )
 from src.exporters.excel_exporter import save_jobs_to_excel
+from src.generators.cover_letter_generator import add_cover_letters
 from src.matchers.ai_matcher import add_ai_match_scores
 from src.matchers.skill_matcher import (
     extract_skills,
@@ -34,6 +35,7 @@ def print_job_summary(dataframe: pd.DataFrame) -> None:
         "AI Match Score",
         "Final Match Score",
         "Recommendation",
+        "Cover Letter Type",
         "Matched Skills",
         "Missing Skills",
     ]
@@ -78,6 +80,10 @@ def main() -> None:
         jobs_dataframe=jobs_dataframe,
         resume_data=resume_data,
         top_n=TOP_AI_MATCH_COUNT,
+    )
+    jobs_dataframe = add_cover_letters(
+        jobs_dataframe=jobs_dataframe,
+        resume_data=resume_data,
     )
 
     print("\n岗位汇总：")

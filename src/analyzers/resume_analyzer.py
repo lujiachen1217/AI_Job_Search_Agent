@@ -1,14 +1,6 @@
 import json
-from functools import lru_cache
 
-from dotenv import load_dotenv
-from openai import OpenAI
-
-
-@lru_cache(maxsize=1)
-def _get_openai_client() -> OpenAI:
-    load_dotenv()
-    return OpenAI()
+from src.clients.openai_client import get_openai_client
 
 
 def analyze_resume(resume_text: str) -> dict:
@@ -36,5 +28,5 @@ Return ONLY valid JSON in exactly this structure:
 Resume:
 {resume_text}
 """
-    response = _get_openai_client().responses.create(model="gpt-5", input=prompt)
+    response = get_openai_client().responses.create(model="gpt-5", input=prompt)
     return json.loads(response.output_text)

@@ -78,6 +78,7 @@ def rank_matching_jobs(
 ) -> pd.DataFrame:
     """计算职位分数，按最低分过滤，并按 Match Score 降序排列。"""
     results: list[dict] = []
+    jobs_with_recognized_skills = 0
 
     for job in jobs_dataframe.to_dict(orient="records"):
         match_result = calculate_keyword_match(
@@ -85,6 +86,8 @@ def rank_matching_jobs(
             job_description=job["Job Description"],
             skill_list=skill_list,
         )
+        if match_result["job_skills"]:
+            jobs_with_recognized_skills += 1
         if match_result["match_score"] < minimum_match_score:
             continue
 
@@ -116,5 +119,6 @@ def rank_matching_jobs(
             by="Match Score", ascending=False
         ).reset_index(drop=True)
 
-    print(f"匹配职位数：{len(dataframe)}")
+    print(f"Jobs with recognized JD skills: {jobs_with_recognized_skills}")
+    print(f"Jobs above minimum match threshold: {len(dataframe)}")
     return dataframe
