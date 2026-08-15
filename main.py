@@ -1,5 +1,6 @@
 import pandas as pd
 
+from src.analyzers.job_decision_analyzer import add_job_decisions
 from src.analyzers.resume_analyzer import analyze_resume
 from src.analyzers.sponsorship_analyzer import add_sponsorship_analysis
 from src.config import (
@@ -38,6 +39,8 @@ def print_job_summary(dataframe: pd.DataFrame) -> None:
         "Recommendation",
         "Sponsorship Status",
         "Sponsorship Confidence",
+        "LLM Decision",
+        "Decision Confidence",
         "Cover Letter Type",
         "Matched Skills",
         "Missing Skills",
@@ -88,6 +91,13 @@ def main() -> None:
     print("\n正在对 Top 5 岗位进行 Sponsorship 分析……")
     jobs_dataframe = add_sponsorship_analysis(
         jobs_dataframe=jobs_dataframe,
+        top_n=TOP_AI_MATCH_COUNT,
+    )
+
+    print("\n正在对 Top 5 岗位进行最终 LLM 决策……")
+    jobs_dataframe = add_job_decisions(
+        jobs_dataframe=jobs_dataframe,
+        candidate_profile=resume_data,
         top_n=TOP_AI_MATCH_COUNT,
     )
 
