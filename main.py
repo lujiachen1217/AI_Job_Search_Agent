@@ -6,12 +6,14 @@ from src.analyzers.sponsorship_analyzer import add_sponsorship_analysis
 from src.config import (
     EXCEL_OUTPUT_PATH,
     GREENHOUSE_COMPANIES,
+    MAX_REQUIRED_EXPERIENCE_YEARS,
     MINIMUM_MATCH_SCORE,
     RESUME_PATH,
     SKILLS_PATH,
     TOP_AI_MATCH_COUNT,
 )
 from src.exporters.excel_exporter import save_jobs_to_excel
+from src.filters.experience_filter import filter_early_career_jobs
 from src.generators.cover_letter_generator import add_cover_letters
 from src.matchers.ai_matcher import add_ai_match_scores
 from src.matchers.skill_matcher import (
@@ -70,6 +72,10 @@ def main() -> None:
 
     print("\n正在抓取并进行关键词匹配……")
     jobs_dataframe = scrape_jobs(companies=GREENHOUSE_COMPANIES)
+    jobs_dataframe = filter_early_career_jobs(
+        jobs_dataframe=jobs_dataframe,
+        max_required_experience_years=MAX_REQUIRED_EXPERIENCE_YEARS,
+    )
     jobs_dataframe = rank_matching_jobs(
         jobs_dataframe=jobs_dataframe,
         resume_skills=resume_skills,
