@@ -1,6 +1,7 @@
 """LLM-based final application decision analysis for shortlisted jobs."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from numbers import Integral
 
 import pandas as pd
@@ -161,8 +162,12 @@ def add_job_decisions(
     jobs_dataframe: pd.DataFrame,
     candidate_profile: dict,
     top_n: int = 5,
+    max_workers: int = 4,
 ) -> pd.DataFrame:
-    """Add final LLM decisions to the same Top N shortlisted jobs."""
+    """Concurrently add final LLM decisions to the Top N shortlisted jobs."""
+    if max_workers < 1:
+        raise ValueError("max_workers must be at least 1")
+
     jobs_dataframe = jobs_dataframe.copy().reset_index(drop=True)
     jobs_dataframe["LLM Decision"] = ""
     jobs_dataframe["Decision Confidence"] = None
@@ -170,40 +175,75 @@ def add_job_decisions(
     jobs_dataframe["Decision Strengths"] = ""
     jobs_dataframe["Decision Concerns"] = ""
 
-    for index in range(min(top_n, len(jobs_dataframe))):
-        row = jobs_dataframe.iloc[index]
-        print(
-            f"\n正在进行最终 LLM 决策："
-            f"{row['Company']} - {row['Title']}"
-        )
+    analyzed_count = min(top_n, len(jobs_dataframe))
+    if analyzed_count:
+        worker_count = min(max_workers, analyzed_count)
+        future_to_job: dict = {}
 
-        result = analyze_job_decision(
-            candidate_profile=candidate_profile,
-            company=row["Company"],
-            title=row["Title"],
-            location=row["Location"],
-            job_description=row["Job Description"],
-            match_score=row["Match Score"],
-            ai_match_score=row["AI Match Score"],
-            final_match_score=row["Final Match Score"],
-            matched_skills=row["Matched Skills"],
-            missing_skills=row["Missing Skills"],
-            sponsorship_status=row["Sponsorship Status"],
-            sponsorship_confidence=row["Sponsorship Confidence"],
-            sponsorship_reason=row["Sponsorship Reason"],
-        )
-        jobs_dataframe.at[index, "LLM Decision"] = result["decision"]
-        jobs_dataframe.at[index, "Decision Confidence"] = result["confidence"]
-        jobs_dataframe.at[index, "Decision Reason"] = result["reason"]
-        jobs_dataframe.at[index, "Decision Strengths"] = ", ".join(
-            result["strengths"]
-        )
-        jobs_dataframe.at[index, "Decision Concerns"] = ", ".join(
-            result["concerns"]
-        )
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            for index in range(analyzed_count):
+                row = jobs_dataframe.iloc[index]
+                print(
+                    f"\n正在提交最终 LLM 决策："
+                    f"{row['Company']} - {row['Title']}"
+                )
+                future = executor.submit(
+                    analyze_job_decision,
+                    candidate_profile=candidate_profile,
+                    company=row["Company"],
+                    title=row["Title"],
+                    location=row["Location"],
+                    job_description=row["Job Description"],
+                    match_score=row["Match Score"],
+                    ai_match_score=row["AI Match Score"],
+                    final_match_score=row["Final Match Score"],
+                    matched_skills=row["Matched Skills"],
+                    missing_skills=row["Missing Skills"],
+                    sponsorship_status=row["Sponsorship Status"],
+                    sponsorship_confidence=row["Sponsorship Confidence"],
+                    sponsorship_reason=row["Sponsorship Reason"],
+                )
+                future_to_job[future] = {
+                    "index": index,
+                    "company": row["Company"],
+                    "title": row["Title"],
+                }
 
-        print(f"Decision：{result['decision']}")
-        print(f"Confidence：{result['confidence']}")
-        print(f"Reason：{result['reason']}")
+            for future in as_completed(future_to_job):
+                job = future_to_job[future]
+                index = job["index"]
+                try:
+                    result = future.result()
+                except Exception as error:
+                    print(
+                        "Job decision analysis failed for "
+                        f"{job['company']} - {job['title']}: {error}"
+                    )
+                    result = {
+                        **DEFAULT_JOB_DECISION,
+                        "strengths": [],
+                        "concerns": [],
+                    }
+
+                jobs_dataframe.at[index, "LLM Decision"] = result["decision"]
+                jobs_dataframe.at[index, "Decision Confidence"] = result[
+                    "confidence"
+                ]
+                jobs_dataframe.at[index, "Decision Reason"] = result["reason"]
+                jobs_dataframe.at[index, "Decision Strengths"] = ", ".join(
+                    result["strengths"]
+                )
+                jobs_dataframe.at[index, "Decision Concerns"] = ", ".join(
+                    result["concerns"]
+                )
+
+                print(
+                    f"最终决策完成：{job['company']} - {job['title']}"
+                )
+                print(
+                    f"Decision：{result['decision']} | "
+                    f"Confidence：{result['confidence']}"
+                )
+                print(f"Reason：{result['reason']}")
 
     return jobs_dataframe

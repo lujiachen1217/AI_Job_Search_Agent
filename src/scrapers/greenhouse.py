@@ -7,10 +7,10 @@ import requests
 
 from src.config import (
     EXCLUDED_JOB_KEYWORDS,
-    EXCLUDED_LOCATION_KEYWORDS,
     GREENHOUSE_COMPANIES,
     TARGET_JOB_KEYWORDS,
 )
+from src.filters.location_filter import is_excluded_location
 
 
 SCRAPED_JOB_COLUMNS = [
@@ -20,19 +20,6 @@ SCRAPED_JOB_COLUMNS = [
     "Job Description",
     "Apply Link",
 ]
-
-
-def is_excluded_location(
-    location: str,
-    excluded_keywords: Iterable[str] = EXCLUDED_LOCATION_KEYWORDS,
-) -> bool:
-    """判断岗位地点是否属于当前不考虑的国家或城市。"""
-    location_lower = location.casefold().strip()
-    has_excluded_location = any(
-        keyword.casefold() in location_lower for keyword in excluded_keywords
-    )
-    is_uk_location = bool(re.search(r"\buk\b", location_lower))
-    return has_excluded_location or is_uk_location
 
 
 def clean_job_description(raw_description: str) -> str:

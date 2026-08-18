@@ -1,5 +1,6 @@
 import json
 import math
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 
@@ -88,8 +89,12 @@ def add_ai_match_scores(
     jobs_dataframe: pd.DataFrame,
     resume_data: dict,
     top_n: int = 5,
+    max_workers: int = 4,
 ) -> pd.DataFrame:
-    """为关键词分数最高的前 top_n 个职位添加 GPT 语义匹配字段。"""
+    """Concurrently add GPT match results to the highest-ranked Top N jobs."""
+    if max_workers < 1:
+        raise ValueError("max_workers must be at least 1")
+
     jobs_dataframe = jobs_dataframe.copy().reset_index(drop=True)
     jobs_dataframe["AI Match Score"] = None
     jobs_dataframe["Final Match Score"] = None
@@ -98,55 +103,81 @@ def add_ai_match_scores(
     jobs_dataframe["AI Missing Qualifications"] = ""
     jobs_dataframe["AI Reasoning"] = ""
 
-    for index in range(min(top_n, len(jobs_dataframe))):
-        row = jobs_dataframe.iloc[index]
-        print(f"\n正在进行 AI 匹配：{row['Company']} - {row['Title']}")
-
-        try:
-            ai_result = calculate_ai_match(
-                resume_data=resume_data,
-                job_title=row["Title"],
-                job_description=row["Job Description"],
-            )
-            ai_score = ai_result.get("ai_match_score")
-            jobs_dataframe.at[index, "AI Match Score"] = ai_score
-
-            try:
-                numeric_ai_score = float(ai_score)
-                if isinstance(ai_score, bool) or not math.isfinite(
-                    numeric_ai_score
-                ) or not 0 <= numeric_ai_score <= 100:
-                    raise ValueError(
-                        "AI match score must be between 0 and 100"
-                    )
-                jobs_dataframe.at[index, "Final Match Score"] = (
-                    calculate_final_score(
-                        float(row["Match Score"]), numeric_ai_score
-                    )
-                )
-            except (TypeError, ValueError):
-                jobs_dataframe.at[index, "Final Match Score"] = None
-
-            jobs_dataframe.at[index, "Recommendation"] = ai_result.get(
-                "recommendation", ""
-            )
-            jobs_dataframe.at[index, "AI Matched Qualifications"] = ", ".join(
-                ai_result.get("matched_qualifications", [])
-            )
-            jobs_dataframe.at[index, "AI Missing Qualifications"] = ", ".join(
-                ai_result.get("missing_qualifications", [])
-            )
-            jobs_dataframe.at[index, "AI Reasoning"] = " | ".join(
-                ai_result.get("reasoning", [])
-            )
-            print(
-                f"AI Score：{ai_result.get('ai_match_score')} | "
-                f"Recommendation：{ai_result.get('recommendation', '')}"
-            )
-        except Exception as error:
-            print(f"AI 匹配失败：{error}")
-
     analyzed_count = min(top_n, len(jobs_dataframe))
+    if analyzed_count:
+        worker_count = min(max_workers, analyzed_count)
+        future_to_job: dict = {}
+
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            for index in range(analyzed_count):
+                row = jobs_dataframe.iloc[index]
+                print(
+                    f"\n正在提交 AI 匹配："
+                    f"{row['Company']} - {row['Title']}"
+                )
+                future = executor.submit(
+                    calculate_ai_match,
+                    resume_data=resume_data,
+                    job_title=row["Title"],
+                    job_description=row["Job Description"],
+                )
+                future_to_job[future] = {
+                    "index": index,
+                    "company": row["Company"],
+                    "title": row["Title"],
+                    "match_score": row["Match Score"],
+                }
+
+            for future in as_completed(future_to_job):
+                job = future_to_job[future]
+                index = job["index"]
+
+                try:
+                    ai_result = future.result()
+                    ai_score = ai_result.get("ai_match_score")
+                    jobs_dataframe.at[index, "AI Match Score"] = ai_score
+
+                    try:
+                        numeric_ai_score = float(ai_score)
+                        if isinstance(ai_score, bool) or not math.isfinite(
+                            numeric_ai_score
+                        ) or not 0 <= numeric_ai_score <= 100:
+                            raise ValueError(
+                                "AI match score must be between 0 and 100"
+                            )
+                        jobs_dataframe.at[index, "Final Match Score"] = (
+                            calculate_final_score(
+                                float(job["match_score"]), numeric_ai_score
+                            )
+                        )
+                    except (TypeError, ValueError):
+                        jobs_dataframe.at[index, "Final Match Score"] = None
+
+                    jobs_dataframe.at[index, "Recommendation"] = ai_result.get(
+                        "recommendation", ""
+                    )
+                    jobs_dataframe.at[
+                        index, "AI Matched Qualifications"
+                    ] = ", ".join(ai_result.get("matched_qualifications", []))
+                    jobs_dataframe.at[
+                        index, "AI Missing Qualifications"
+                    ] = ", ".join(ai_result.get("missing_qualifications", []))
+                    jobs_dataframe.at[index, "AI Reasoning"] = " | ".join(
+                        ai_result.get("reasoning", [])
+                    )
+                    print(
+                        f"AI 匹配完成：{job['company']} - {job['title']}"
+                    )
+                    print(
+                        f"AI Score：{ai_result.get('ai_match_score')} | "
+                        f"Recommendation："
+                        f"{ai_result.get('recommendation', '')}"
+                    )
+                except Exception as error:
+                    print(
+                        f"AI 匹配失败：{job['company']} - "
+                        f"{job['title']}：{error}"
+                    )
     analyzed_jobs = jobs_dataframe.iloc[:analyzed_count].sort_values(
         by="Final Match Score",
         ascending=False,

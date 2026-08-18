@@ -4,12 +4,16 @@ from src.analyzers.job_decision_analyzer import add_job_decisions
 from src.analyzers.resume_analyzer import analyze_resume
 from src.analyzers.sponsorship_analyzer import add_sponsorship_analysis
 from src.config import (
+    AI_MATCH_MAX_WORKERS,
+    DECISION_MAX_WORKERS,
     EXCEL_OUTPUT_PATH,
     GREENHOUSE_COMPANIES,
+    LEVER_COMPANIES,
     MAX_REQUIRED_EXPERIENCE_YEARS,
-    MINIMUM_MATCH_SCORE,
     RESUME_PATH,
+    SKILL_MATCH_DEBUG,
     SKILLS_PATH,
+    SPONSORSHIP_MAX_WORKERS,
     TOP_AI_MATCH_COUNT,
 )
 from src.exporters.excel_exporter import save_jobs_to_excel
@@ -22,7 +26,8 @@ from src.matchers.skill_matcher import (
     rank_matching_jobs,
 )
 from src.parsers.resume_parser import extract_text_from_pdf
-from src.scrapers.greenhouse import scrape_jobs
+from src.scrapers.greenhouse import scrape_jobs as scrape_greenhouse_jobs
+from src.scrapers.lever import scrape_lever_jobs
 
 
 def print_job_summary(dataframe: pd.DataFrame) -> None:
@@ -71,7 +76,12 @@ def main() -> None:
     resume_data = analyze_resume(resume_text)
 
     print("\n正在抓取并进行关键词匹配……")
-    jobs_dataframe = scrape_jobs(companies=GREENHOUSE_COMPANIES)
+    greenhouse_jobs = scrape_greenhouse_jobs(companies=GREENHOUSE_COMPANIES)
+    lever_jobs = scrape_lever_jobs(companies=LEVER_COMPANIES)
+    jobs_dataframe = pd.concat(
+        [greenhouse_jobs, lever_jobs],
+        ignore_index=True,
+    )
     jobs_dataframe = filter_early_career_jobs(
         jobs_dataframe=jobs_dataframe,
         max_required_experience_years=MAX_REQUIRED_EXPERIENCE_YEARS,
@@ -80,7 +90,7 @@ def main() -> None:
         jobs_dataframe=jobs_dataframe,
         resume_skills=resume_skills,
         skill_list=skill_list,
-        minimum_match_score=MINIMUM_MATCH_SCORE,
+        debug=SKILL_MATCH_DEBUG,
     )
 
     if jobs_dataframe.empty:
@@ -92,12 +102,14 @@ def main() -> None:
         jobs_dataframe=jobs_dataframe,
         resume_data=resume_data,
         top_n=TOP_AI_MATCH_COUNT,
+        max_workers=AI_MATCH_MAX_WORKERS,
     )
 
     print("\n正在对 Top 5 岗位进行 Sponsorship 分析……")
     jobs_dataframe = add_sponsorship_analysis(
         jobs_dataframe=jobs_dataframe,
         top_n=TOP_AI_MATCH_COUNT,
+        max_workers=SPONSORSHIP_MAX_WORKERS,
     )
 
     print("\n正在对 Top 5 岗位进行最终 LLM 决策……")
@@ -105,6 +117,7 @@ def main() -> None:
         jobs_dataframe=jobs_dataframe,
         candidate_profile=resume_data,
         top_n=TOP_AI_MATCH_COUNT,
+        max_workers=DECISION_MAX_WORKERS,
     )
 
     jobs_dataframe = add_cover_letters(

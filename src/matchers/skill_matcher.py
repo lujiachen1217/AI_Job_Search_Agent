@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.matchers.skill_aliases import canonicalize_skill, extract_alias_skills
+
 
 MATCHED_JOB_COLUMNS = [
     "Company",
@@ -42,12 +44,12 @@ def load_skill_list(csv_path: str | Path) -> list[str]:
 
 
 def extract_skills(text: str, skill_list: list[str]) -> set[str]:
-    """用技能库进行精确关键词识别。"""
-    found_skills: set[str] = set()
+    """用技能库和受控别名识别 canonical 技能。"""
+    found_skills = extract_alias_skills(text)
     for skill in skill_list:
         pattern = r"(?<!\w)" + re.escape(skill) + r"(?!\w)"
         if re.search(pattern, text, flags=re.IGNORECASE):
-            found_skills.add(skill)
+            found_skills.add(canonicalize_skill(skill))
     return found_skills
 
 
@@ -73,13 +75,44 @@ def calculate_keyword_match(
     }
 
 
+def _print_skill_match_audit(
+    job: dict,
+    resume_skills: set[str],
+    match_result: dict,
+) -> None:
+    """Print detailed diagnostics using the actual keyword-match result."""
+    score = match_result["match_score"]
+    if score >= 50:
+        ranking_signal = "High"
+    elif score >= 20:
+        ranking_signal = "Medium"
+    else:
+        ranking_signal = "Low"
+
+    print("-" * 50)
+    print("Skill Match Audit")
+    print(f"\nCompany: {job['Company']}")
+    print(f"Title: {job['Title']}")
+    print(f"Location: {job['Location']}")
+    print(f"\nMinimum Experience Years: {job['Minimum Experience Years']}")
+    print(f"Experience Level: {job['Experience Level']}")
+    print(f"\nResume Skills Recognized:\n{sorted(resume_skills)}")
+    print(f"\nJD Skills Recognized:\n{sorted(match_result['job_skills'])}")
+    print(f"\nMatched Skills:\n{sorted(match_result['matched_skills'])}")
+    print(f"\nMissing JD Skills:\n{sorted(match_result['missing_skills'])}")
+    print(f"\nSkill Match Score:\n{score}%")
+    print(f"\nRanking Signal:\n{ranking_signal}")
+    print("\nRetained for AI Ranking:\nYes")
+    print("-" * 50)
+
+
 def rank_matching_jobs(
     jobs_dataframe: pd.DataFrame,
     resume_skills: set[str],
     skill_list: list[str],
-    minimum_match_score: float,
+    debug: bool = False,
 ) -> pd.DataFrame:
-    """计算职位分数，按最低分过滤，并按 Match Score 降序排列。"""
+    """Calculate soft skill signals and rank every hard-filtered candidate."""
     results: list[dict] = []
     jobs_with_recognized_skills = 0
 
@@ -91,8 +124,12 @@ def rank_matching_jobs(
         )
         if match_result["job_skills"]:
             jobs_with_recognized_skills += 1
-        if match_result["match_score"] < minimum_match_score:
-            continue
+        if debug:
+            _print_skill_match_audit(
+                job=job,
+                resume_skills=resume_skills,
+                match_result=match_result,
+            )
 
         results.append(
             {
@@ -115,16 +152,20 @@ def rank_matching_jobs(
             }
         )
         print(
-            f"保留岗位：{job['Title']} | Location：{job['Location']} | "
-            f"Match Score：{match_result['match_score']}%"
+            f"候选岗位：{job['Title']} | Location：{job['Location']} | "
+            f"Skill Match Score：{match_result['match_score']}%"
         )
 
     dataframe = pd.DataFrame(results, columns=MATCHED_JOB_COLUMNS)
     if not dataframe.empty:
         dataframe = dataframe.sort_values(
-            by="Match Score", ascending=False
+            by="Match Score", ascending=False, kind="stable"
         ).reset_index(drop=True)
 
-    print(f"Jobs with recognized JD skills: {jobs_with_recognized_skills}")
-    print(f"Jobs above minimum match threshold: {len(dataframe)}")
+    print(f"Candidate jobs after hard filters: {len(jobs_dataframe)}")
+    print(
+        "Candidate jobs with recognized JD skills: "
+        f"{jobs_with_recognized_skills}"
+    )
+    print(f"Jobs ranked for AI evaluation: {len(dataframe)}")
     return dataframe

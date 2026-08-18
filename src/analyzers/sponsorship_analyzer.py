@@ -1,6 +1,7 @@
 """LLM-based analysis of job-specific visa sponsorship evidence."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from numbers import Integral
 
 import pandas as pd
@@ -122,40 +123,74 @@ Full job description:
 def add_sponsorship_analysis(
     jobs_dataframe: pd.DataFrame,
     top_n: int = 5,
+    max_workers: int = 4,
 ) -> pd.DataFrame:
-    """Add sponsorship analysis to the same Top N shortlisted jobs."""
+    """Concurrently add sponsorship analysis to the Top N shortlisted jobs."""
+    if max_workers < 1:
+        raise ValueError("max_workers must be at least 1")
+
     jobs_dataframe = jobs_dataframe.copy().reset_index(drop=True)
     jobs_dataframe["Sponsorship Status"] = "Unknown"
     jobs_dataframe["Sponsorship Confidence"] = 0
     jobs_dataframe["Sponsorship Reason"] = ""
     jobs_dataframe["Sponsorship Evidence"] = ""
 
-    for index in range(min(top_n, len(jobs_dataframe))):
-        row = jobs_dataframe.iloc[index]
-        print(
-            f"\n正在分析 Sponsorship："
-            f"{row['Company']} - {row['Title']}"
-        )
+    analyzed_count = min(top_n, len(jobs_dataframe))
+    if analyzed_count:
+        worker_count = min(max_workers, analyzed_count)
+        future_to_job: dict = {}
 
-        result = analyze_sponsorship(
-            company=row["Company"],
-            title=row["Title"],
-            location=row["Location"],
-            job_description=row["Job Description"],
-        )
-        jobs_dataframe.at[index, "Sponsorship Status"] = result[
-            "sponsorship_status"
-        ]
-        jobs_dataframe.at[index, "Sponsorship Confidence"] = result[
-            "confidence"
-        ]
-        jobs_dataframe.at[index, "Sponsorship Reason"] = result["reason"]
-        jobs_dataframe.at[index, "Sponsorship Evidence"] = result["evidence"]
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            for index in range(analyzed_count):
+                row = jobs_dataframe.iloc[index]
+                print(
+                    f"\n正在提交 Sponsorship 分析："
+                    f"{row['Company']} - {row['Title']}"
+                )
+                future = executor.submit(
+                    analyze_sponsorship,
+                    company=row["Company"],
+                    title=row["Title"],
+                    location=row["Location"],
+                    job_description=row["Job Description"],
+                )
+                future_to_job[future] = {
+                    "index": index,
+                    "company": row["Company"],
+                    "title": row["Title"],
+                }
 
-        print(
-            f"Sponsorship：{result['sponsorship_status']} | "
-            f"Confidence：{result['confidence']}"
-        )
-        print(f"Reason：{result['reason']}")
+            for future in as_completed(future_to_job):
+                job = future_to_job[future]
+                index = job["index"]
+                try:
+                    result = future.result()
+                except Exception as error:
+                    print(
+                        "Sponsorship analysis failed for "
+                        f"{job['company']} - {job['title']}: {error}"
+                    )
+                    result = DEFAULT_SPONSORSHIP_RESULT.copy()
+
+                jobs_dataframe.at[index, "Sponsorship Status"] = result[
+                    "sponsorship_status"
+                ]
+                jobs_dataframe.at[index, "Sponsorship Confidence"] = result[
+                    "confidence"
+                ]
+                jobs_dataframe.at[index, "Sponsorship Reason"] = result["reason"]
+                jobs_dataframe.at[index, "Sponsorship Evidence"] = result[
+                    "evidence"
+                ]
+
+                print(
+                    f"Sponsorship 分析完成："
+                    f"{job['company']} - {job['title']}"
+                )
+                print(
+                    f"Sponsorship：{result['sponsorship_status']} | "
+                    f"Confidence：{result['confidence']}"
+                )
+                print(f"Reason：{result['reason']}")
 
     return jobs_dataframe
