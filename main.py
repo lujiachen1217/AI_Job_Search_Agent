@@ -12,6 +12,7 @@ from src.config import (
     LEVER_COMPANIES,
     MAX_REQUIRED_EXPERIENCE_YEARS,
     RESUME_PATH,
+    SMARTRECRUITERS_COMPANIES,
     SKILL_MATCH_DEBUG,
     SKILLS_PATH,
     SPONSORSHIP_MAX_WORKERS,
@@ -31,6 +32,10 @@ from src.parsers.resume_parser import extract_text_from_pdf
 from src.scrapers.greenhouse import scrape_jobs as scrape_greenhouse_jobs
 from src.scrapers.lever import scrape_lever_jobs
 from src.scrapers.ashby import scrape_ashby_jobs
+from src.scrapers.smartrecruiters import (
+    add_smartrecruiters_descriptions,
+    scrape_smartrecruiters_jobs,
+)
 from src.utils.job_deduplicator import deduplicate_jobs
 
 
@@ -84,11 +89,24 @@ def main() -> None:
     lever_jobs = scrape_lever_jobs(companies=LEVER_COMPANIES)
     ashby_jobs = scrape_ashby_jobs(companies=ASHBY_COMPANIES)
     ashby_jobs = filter_normalized_jobs(ashby_jobs)
+    smartrecruiters_jobs = scrape_smartrecruiters_jobs(
+        companies=SMARTRECRUITERS_COMPANIES
+    )
+    smartrecruiters_raw_count = len(smartrecruiters_jobs)
+    smartrecruiters_jobs = filter_normalized_jobs(
+        smartrecruiters_jobs,
+        require_description=False,
+    )
+    smartrecruiters_jobs = add_smartrecruiters_descriptions(
+        smartrecruiters_jobs
+    )
     print(f"Greenhouse 获取职位数：{len(greenhouse_jobs)}")
     print(f"Lever 获取职位数：{len(lever_jobs)}")
     print(f"Ashby 获取职位数：{len(ashby_jobs)}")
+    print(f"SmartRecruiters 原始职位数：{smartrecruiters_raw_count}")
+    print(f"SmartRecruiters 获取职位数：{len(smartrecruiters_jobs)}")
     jobs_dataframe = pd.concat(
-        [greenhouse_jobs, lever_jobs, ashby_jobs],
+        [greenhouse_jobs, lever_jobs, ashby_jobs, smartrecruiters_jobs],
         ignore_index=True,
     )
     print(f"合并后原始职位总数：{len(jobs_dataframe)}")

@@ -43,6 +43,17 @@ ASHBY_COMPANIES = [
     "insitro",
 ]
 
+SMARTRECRUITERS_COMPANIES = [
+    "BoschGroup",
+    "Ubisoft2",
+    "CERN",
+    "ServiceNow",
+    "NielsenIQ",
+    "Eurofins",
+    "AbbVie",
+    "Devoteam",
+]
+
 TARGET_JOB_KEYWORDS = [
     "data analyst",
     "data scientist",
@@ -116,6 +127,64 @@ ALLOWED_LOCATION_KEYWORDS = [
     "shenzhen",
     "guangzhou",
     "hangzhou",
+]
+
+ALLOWED_COUNTRY_REGION_KEYWORDS = [
+    "united states",
+    "usa",
+    "mainland china",
+    "china",
+    "hong kong sar",
+    "hong kong",
+    "singapore",
+]
+
+EXCLUDED_LOCATION_COUNTRIES = [
+    "canada",
+    "united kingdom",
+    "uk",
+    "england",
+    "france",
+    "germany",
+    "netherlands",
+    "spain",
+    "colombia",
+    "india",
+    "australia",
+    "japan",
+    "south korea",
+    "korea",
+    "serbia",
+    "ireland",
+    "italy",
+    "poland",
+    "portugal",
+    "belgium",
+    "austria",
+    "switzerland",
+    "sweden",
+    "denmark",
+    "norway",
+    "finland",
+    "czech republic",
+    "romania",
+    "hungary",
+    "greece",
+    "turkey",
+    "israel",
+    "taiwan",
+    "new zealand",
+    "united arab emirates",
+    "uae",
+    "qatar",
+    "saudi arabia",
+    "brazil",
+    "mexico",
+    "indonesia",
+    "malaysia",
+    "philippines",
+    "thailand",
+    "vietnam",
 ]
 
 US_STATE_NAMES = [

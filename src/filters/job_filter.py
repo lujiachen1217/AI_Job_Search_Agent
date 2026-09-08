@@ -10,7 +10,10 @@ from src.scrapers.greenhouse import (
 )
 
 
-def filter_normalized_jobs(jobs_dataframe: pd.DataFrame) -> pd.DataFrame:
+def filter_normalized_jobs(
+    jobs_dataframe: pd.DataFrame,
+    require_description: bool = True,
+) -> pd.DataFrame:
     """Apply the existing title and location rules to normalized jobs."""
     retained_jobs: list[dict] = []
 
@@ -23,7 +26,9 @@ def filter_normalized_jobs(jobs_dataframe: pd.DataFrame) -> pd.DataFrame:
             continue
         if is_excluded_location(location):
             continue
-        if not str(job.get("Job Description") or "").strip():
+        if require_description and not str(
+            job.get("Job Description") or ""
+        ).strip():
             continue
         retained_jobs.append(job)
 

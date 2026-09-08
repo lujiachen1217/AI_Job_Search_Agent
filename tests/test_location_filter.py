@@ -17,6 +17,11 @@ from src.filters.location_filter import is_allowed_location, is_excluded_locatio
         "New York, NY",
         "New York City",
         "Cambridge, MA",
+        "Washington, DC",
+        "Washington, DC, United States",
+        "Boston, MA",
+        "Austin, TX",
+        "Chicago, IL",
         "Remote - United States",
         "Remote - US",
         "Remote, United States",
@@ -25,6 +30,8 @@ from src.filters.location_filter import is_allowed_location, is_excluded_locatio
         "Singapore",
         "Shanghai",
         "Beijing",
+        "Suzhou, Jiangsu, China",
+        "Wuxi, Jiangsu, China",
     ],
 )
 def test_allowed_locations(location: str) -> None:
@@ -45,6 +52,16 @@ def test_allowed_locations(location: str) -> None:
         "North America",
         "Europe",
         "EMEA",
+        "Bogota, DC, Colombia",
+        "Amsterdam, NH, Netherlands",
+        "Madrid, MD, Spain",
+        "Toronto, ON, Canada",
+        "Vancouver, BC, Canada",
+        "London, UK",
+        "London, England, United Kingdom",
+        "Berlin, Germany",
+        "Paris, France",
+        "Bengaluru, India",
     ],
 )
 def test_excluded_locations(location: str) -> None:
