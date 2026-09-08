@@ -5,6 +5,7 @@ from src.analyzers.resume_analyzer import analyze_resume
 from src.analyzers.sponsorship_analyzer import add_sponsorship_analysis
 from src.config import (
     AI_MATCH_MAX_WORKERS,
+    ASHBY_COMPANIES,
     DECISION_MAX_WORKERS,
     EXCEL_OUTPUT_PATH,
     GREENHOUSE_COMPANIES,
@@ -18,6 +19,7 @@ from src.config import (
 )
 from src.exporters.excel_exporter import save_jobs_to_excel
 from src.filters.experience_filter import filter_early_career_jobs
+from src.filters.job_filter import filter_normalized_jobs
 from src.generators.cover_letter_generator import add_cover_letters
 from src.matchers.ai_matcher import add_ai_match_scores
 from src.matchers.skill_matcher import (
@@ -28,6 +30,8 @@ from src.matchers.skill_matcher import (
 from src.parsers.resume_parser import extract_text_from_pdf
 from src.scrapers.greenhouse import scrape_jobs as scrape_greenhouse_jobs
 from src.scrapers.lever import scrape_lever_jobs
+from src.scrapers.ashby import scrape_ashby_jobs
+from src.utils.job_deduplicator import deduplicate_jobs
 
 
 def print_job_summary(dataframe: pd.DataFrame) -> None:
@@ -78,10 +82,21 @@ def main() -> None:
     print("\n正在抓取并进行关键词匹配……")
     greenhouse_jobs = scrape_greenhouse_jobs(companies=GREENHOUSE_COMPANIES)
     lever_jobs = scrape_lever_jobs(companies=LEVER_COMPANIES)
+    ashby_jobs = scrape_ashby_jobs(companies=ASHBY_COMPANIES)
+    ashby_jobs = filter_normalized_jobs(ashby_jobs)
+    print(f"Greenhouse 获取职位数：{len(greenhouse_jobs)}")
+    print(f"Lever 获取职位数：{len(lever_jobs)}")
+    print(f"Ashby 获取职位数：{len(ashby_jobs)}")
     jobs_dataframe = pd.concat(
-        [greenhouse_jobs, lever_jobs],
+        [greenhouse_jobs, lever_jobs, ashby_jobs],
         ignore_index=True,
     )
+    print(f"合并后原始职位总数：{len(jobs_dataframe)}")
+    jobs_before_deduplication = len(jobs_dataframe)
+    jobs_dataframe = deduplicate_jobs(jobs_dataframe)
+    print(f"去重前职位数：{jobs_before_deduplication}")
+    print(f"去重后职位数：{len(jobs_dataframe)}")
+    print(f"删除重复职位数：{jobs_before_deduplication - len(jobs_dataframe)}")
     jobs_dataframe = filter_early_career_jobs(
         jobs_dataframe=jobs_dataframe,
         max_required_experience_years=MAX_REQUIRED_EXPERIENCE_YEARS,

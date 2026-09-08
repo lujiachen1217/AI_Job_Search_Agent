@@ -27,6 +27,22 @@ LEVER_COMPANIES = [
     "analyticpartners",
 ]
 
+ASHBY_COMPANIES = [
+    "ramp",
+    "linear",
+    "vanta",
+    "cohere",
+    "harvey",
+    "cursor",
+    "openai",
+    "notion",
+    "watershed",
+    "modal",
+    "perplexity",
+    "benchling",
+    "insitro",
+]
+
 TARGET_JOB_KEYWORDS = [
     "data analyst",
     "data scientist",
@@ -42,6 +58,7 @@ TARGET_JOB_KEYWORDS = [
     "analytics",
     "data science",
     "decision science",
+    "decision scientist",
     "insights analyst",
     "quantitative analyst",
     "statistical analyst",
@@ -50,11 +67,20 @@ TARGET_JOB_KEYWORDS = [
     "bi analyst",
     "operations analyst",
     "strategy analyst",
-    "risk analyst",
+    "analytics analyst",
+    "ml engineer",
+    "ai engineer",
+    "data engineer",
+    "statistical programmer",
+    "clinical data scientist",
+    "health data scientist",
+    "business systems analyst",
 ]
 
 EXCLUDED_JOB_KEYWORDS = [
     "senior",
+    "sr.",
+    "sr",
     "staff",
     "principal",
     "director",
@@ -62,6 +88,7 @@ EXCLUDED_JOB_KEYWORDS = [
     "lead",
     "head of",
     "vice president",
+    "vp",
     "chief",
     "tutor",
     "account executive",
@@ -72,6 +99,8 @@ EXCLUDED_JOB_KEYWORDS = [
     "phd",
     "postdoc",
     "postdoctoral",
+    "it operations analyst",
+    "software engineer",
 ]
 
 ALLOWED_LOCATION_KEYWORDS = [
@@ -150,6 +179,51 @@ US_STATE_ABBREVIATIONS = [
     "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI",
     "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI",
     "WY",
+]
+
+US_CITY_NAMES = [
+    "San Francisco",
+    "Seattle",
+    "New York City",
+    "New York",
+    "Boston",
+    "Los Angeles",
+    "San Diego",
+    "Chicago",
+    "Austin",
+    "Dallas",
+    "Houston",
+    "Washington DC",
+    "Washington, DC",
+    "Atlanta",
+    "Denver",
+    "Miami",
+    "Philadelphia",
+    "Pittsburgh",
+    "Portland",
+    "Phoenix",
+    "Raleigh",
+    "Charlotte",
+    "Nashville",
+    "Salt Lake City",
+    "San Jose",
+    "Palo Alto",
+    "Mountain View",
+    "Sunnyvale",
+    "Redwood City",
+    "Menlo Park",
+    "Cambridge",
+    "Bellevue",
+    "Redmond",
+    "Santa Clara",
+    "Cupertino",
+    "Oakland",
+    "Sacramento",
+    "Irvine",
+    "Boulder",
+    "Minneapolis",
+    "Detroit",
+    "Columbus",
 ]
 
 MINIMUM_MATCH_SCORE = 20

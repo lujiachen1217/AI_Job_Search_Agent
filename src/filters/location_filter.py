@@ -4,6 +4,7 @@ import re
 
 from src.config import (
     ALLOWED_LOCATION_KEYWORDS,
+    US_CITY_NAMES,
     US_STATE_ABBREVIATIONS,
     US_STATE_NAMES,
 )
@@ -24,6 +25,16 @@ _US_STATE_NAME_PATTERN = re.compile(
     + "|".join(
         re.escape(state) for state in sorted(
             US_STATE_NAMES, key=len, reverse=True
+        )
+    )
+    + r")(?!\w)",
+    re.IGNORECASE,
+)
+_US_CITY_PATTERN = re.compile(
+    r"(?<!\w)(?:"
+    + "|".join(
+        re.escape(city) for city in sorted(
+            US_CITY_NAMES, key=len, reverse=True
         )
     )
     + r")(?!\w)",
@@ -62,6 +73,7 @@ def is_allowed_location(location: str) -> bool:
         pattern.search(normalized)
         for pattern in (
             _ALLOWED_KEYWORD_PATTERN,
+            _US_CITY_PATTERN,
             _US_STATE_NAME_PATTERN,
             _US_STATE_ABBREVIATION_PATTERN,
             _US_COUNTRY_CODE_PATTERN,
